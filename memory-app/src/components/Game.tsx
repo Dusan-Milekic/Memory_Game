@@ -1,0 +1,172 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAppSelector } from "../redux/hooks/hooks";
+
+export default function Game() {
+  const settings = useAppSelector((state) => state.settings);
+
+  const gridCount = useMemo(() => {
+    const g = Number(settings.gridSize) || 4;
+    return g * g;
+  }, [settings.gridSize]);
+
+  const [numbersOfGrid, setNumbersOfGrid] = useState<number[]>([]);
+  const [selected, setSelected] = useState<number[]>([]); // trenutno otvorene (max 2)
+  const [matched, setMatched] = useState<Set<number>>(new Set()); // trajno rešene
+
+  // --- TIMER ---
+  const [seconds, setSeconds] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef<number | null>(null);
+
+  const formatTime = (s: number) => {
+    const mm = String(Math.floor(s / 60)).padStart(2, "0");
+    const ss = String(s % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  useEffect(() => {
+    if (isRunning) {
+      // pokreni interval
+      intervalRef.current = window.setInterval(() => {
+        setSeconds((t) => t + 1);
+      }, 1000);
+    }
+    // cleanup ili pauza
+    return () => {
+      if (intervalRef.current != null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning]);
+
+  // zaustavi tajmer kad sve kartice budu rešene
+  useEffect(() => {
+    if (numbersOfGrid.length > 0 && matched.size === numbersOfGrid.length) {
+      setIsRunning(false);
+    }
+  }, [matched, numbersOfGrid.length]);
+
+  // --- SHUFFLE / GENERISANJE ---
+  function shuffleArray(array: number[]): number[] {
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function genPairs(count: number): number[] {
+    const half = Math.floor(count / 2);
+    const arr: number[] = [];
+    for (let i = 1; i <= half; i++) arr.push(i, i);
+    return shuffleArray(arr);
+  }
+
+  // reset igre pri promeni grida
+  useEffect(() => {
+    setNumbersOfGrid(genPairs(gridCount));
+    setSelected([]);
+    setMatched(new Set());
+    setSeconds(0);
+    setIsRunning(false);
+  }, [gridCount]);
+
+  // --- KLIK LOGIKA ---
+  function handleClick(i: number) {
+    if (selected.includes(i) || matched.has(i)) return;
+
+    // start tajmera na prvi klik u rundi
+    if (!isRunning) setIsRunning(true);
+
+    if (selected.length === 0) {
+      setSelected([i]);
+    } else if (selected.length === 1) {
+      const first = selected[0];
+      const second = i;
+      setSelected([first, second]);
+
+      if (numbersOfGrid[first] === numbersOfGrid[second]) {
+        // pogodak → ostaju otvorene
+        setTimeout(() => {
+          setMatched((prev) => new Set([...prev, first, second]));
+          setSelected([]);
+        }, 300);
+      } else {
+        // promašaj → zatvori posle kratko
+        setTimeout(() => setSelected([]), 700);
+      }
+    } else {
+      setSelected([i]);
+    }
+  }
+
+  return (
+    <>
+      <header className="flex w-full justify-between px-8 pt-10">
+        <div className="title text-blue-950 font-bold">
+          <h1 className="text-2xl">memory</h1>
+        </div>
+        <div className="menu relative">
+          <button
+            className="cursor-pointer bg-orange-400 px-4 pb-2 pt-1 rounded-2xl"
+            onClick={() => {
+              // Restart
+              setNumbersOfGrid(genPairs(gridCount));
+              setSelected([]);
+              setMatched(new Set());
+              setSeconds(0);
+              setIsRunning(false);
+            }}
+          >
+            Menu
+          </button>
+        </div>
+      </header>
+
+      {/* GAME */}
+      <main>
+        <div
+          className={`game grid ${
+            Number(settings.gridSize) === 4 ? "grid-cols-4" : "grid-cols-6"
+          } place-items-center gap-3 px-8 py-40`}
+        >
+          {Array.from({ length: gridCount }).map((_, i) => {
+            const isOpen = selected.includes(i) || matched.has(i);
+            return (
+              <div
+                key={i}
+                onClick={() => handleClick(i)}
+                className={`rounded-full ${
+                  Number(settings.gridSize) === 4
+                    ? "w-20 h-20 text-4xl"
+                    : "w-12 h-12 text-2xl"
+                } flex justify-center items-center cursor-pointer transition
+                   ${isOpen ? "bg-blue-500" : "bg-blue-800"}`}
+              >
+                <p className="pb-2">{isOpen ? numbersOfGrid[i] : ""}</p>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      <footer>
+        <div className="info flex justify-around px-8 gap-6 font-bold">
+          <div className="time bg-blue-100 w-40 py-2 text-center rounded-xl">
+            <p className="text-blue-400">Time</p>
+            <p className="text-2xl text-blue-800">{formatTime(seconds)}</p>
+          </div>
+          <div className="moves bg-blue-100 w-40 py-2 text-center rounded-xl">
+            <p className="text-blue-400">Moves</p>
+            <p className="text-2xl text-blue-800">
+              {/* svaki pokušaj = 2 klika */}
+              {Math.floor(matched.size / 2) + Math.floor(selected.length / 2)}
+            </p>
+          </div>
+        </div>
+      </footer>
+    </>
+  );
+}
