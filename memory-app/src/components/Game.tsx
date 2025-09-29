@@ -12,7 +12,7 @@ export default function Game() {
   const [numbersOfGrid, setNumbersOfGrid] = useState<number[]>([]);
   const [selected, setSelected] = useState<number[]>([]); // trenutno otvorene (max 2)
   const [matched, setMatched] = useState<Set<number>>(new Set()); // trajno rešene
-
+  const [moves, setMoves] = useState<number>(0);
   // --- TIMER ---
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -86,7 +86,7 @@ export default function Game() {
       const first = selected[0];
       const second = i;
       setSelected([first, second]);
-
+      setMoves(moves + 1);
       if (numbersOfGrid[first] === numbersOfGrid[second]) {
         // pogodak → ostaju otvorene
         setTimeout(() => {
@@ -162,7 +162,7 @@ export default function Game() {
             <p className="text-blue-400">Moves</p>
             <p className="text-2xl text-blue-800">
               {/* svaki pokušaj = 2 klika */}
-              {Math.floor(matched.size / 2) + Math.floor(selected.length / 2)}
+              {moves}
             </p>
           </div>
         </div>
