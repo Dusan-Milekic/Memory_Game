@@ -1,5 +1,6 @@
 import { createRef, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSelector } from "../redux/hooks/hooks";
+import { useNavigate } from "react-router-dom";
 
 export default function Game() {
   const settings = useAppSelector((state) => state.settings);
@@ -19,6 +20,9 @@ export default function Game() {
   const intervalRef = useRef<number | null>(null);
   const refMenu = createRef<HTMLDivElement>();
   const refGameSection = createRef<HTMLDivElement>();
+
+  const navigate = useNavigate();
+
   const formatTime = (s: number) => {
     const mm = String(Math.floor(s / 60)).padStart(2, "0");
     const ss = String(s % 60).padStart(2, "0");
@@ -188,7 +192,12 @@ export default function Game() {
         >
           Restart
         </button>
-        <button className="cursor-pointer bg-blue-100 text-blue-800 font-bold w-full pb-3 pt-2 rounded-3xl">
+        <button
+          className="cursor-pointer bg-blue-100 text-blue-800 font-bold w-full pb-3 pt-2 rounded-3xl"
+          onClick={() => {
+            navigate("/");
+          }}
+        >
           New Game
         </button>
         <button
