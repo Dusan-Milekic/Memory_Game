@@ -36,3 +36,14 @@ export function clearTimer(intervalRef: React.RefObject<number | null>) {
     intervalRef.current = null;
   }
 }
+
+//Timer start/stop
+export function useTimer(
+  intervalRef: React.RefObject<number | null>,
+  setSeconds: React.Dispatch<React.SetStateAction<number>>,
+  isRunning: boolean
+) {
+  if (isRunning) startTimer(intervalRef, setSeconds);
+
+  return () => clearTimer(intervalRef);
+}

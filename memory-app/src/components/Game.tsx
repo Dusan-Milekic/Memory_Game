@@ -1,7 +1,7 @@
 import { createRef, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSelector } from "../redux/hooks/hooks";
 import { useNavigate } from "react-router-dom";
-import { genPairs, formatTime, clearTimer, startTimer } from "../utils/general";
+import { genPairs, formatTime, useTimer, clearTimer } from "../utils/general";
 export default function Game() {
   const settings = useAppSelector((state) => state.settings);
 
@@ -24,15 +24,14 @@ export default function Game() {
   const navigate = useNavigate();
 
   //Timer start/stop
-  useEffect(() => {
-    if (isRunning) startTimer(intervalRef, setSeconds);
 
-    return () => clearTimer(intervalRef);
-  }, [isRunning]);
+  useTimer(intervalRef, setSeconds, isRunning);
 
   // Stop timer if all cards are matched
   useEffect(() => {
-    if (matched.size === numbersOfGrid.length) setIsRunning(false);
+    if (matched.size === numbersOfGrid.length) {
+      clearTimer(intervalRef);
+    }
   }, [matched, numbersOfGrid.length]);
 
   // reset game on grid size change
@@ -46,29 +45,29 @@ export default function Game() {
 
   // --- KLIK LOGIKA ---
   function handleClick(i: number) {
+    console.log("MATCHED: ", matched);
     if (selected.includes(i) || matched.has(i)) return;
-
-    // start tajmera na prvi klik u rundi
+    console.log("MATCHED SIZE", matched.size);
+    // Start timer on first click in the round
     if (!isRunning) setIsRunning(true);
 
-    if (selected.length === 0) setSelected([i]);
-    else if (selected.length === 1) {
-      const first = selected[0];
-      const second = i;
-      setSelected([first, second]);
+    if (selected.length === 0) {
+      setSelected([i]);
+    } else if (selected.length === 1) {
+      const firstIndex = selected[0];
+      const secondIndex = i;
       setMoves(moves + 1);
-      if (numbersOfGrid[first] === numbersOfGrid[second]) {
-        // if matched -> stays open
+      setSelected([firstIndex, secondIndex]);
+      if (numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex]) {
+        // If matched -> stays open
         setTimeout(() => {
-          setMatched((prev) => new Set([...prev, first, second]));
+          setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
           setSelected([]);
         }, 300);
       } else {
-        // close after a short time
+        // If not matched -> close after a short delay
         setTimeout(() => setSelected([]), 700);
       }
-    } else {
-      setSelected([i]);
     }
   }
 
