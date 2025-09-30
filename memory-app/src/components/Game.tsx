@@ -1,7 +1,7 @@
 import { createRef, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSelector } from "../redux/hooks/hooks";
 import { useNavigate } from "react-router-dom";
-
+import { genPairs, formatTime, clearTimer, startTimer } from "../utils/general";
 export default function Game() {
   const settings = useAppSelector((state) => state.settings);
 
@@ -23,53 +23,19 @@ export default function Game() {
 
   const navigate = useNavigate();
 
-  const formatTime = (s: number) => {
-    const mm = String(Math.floor(s / 60)).padStart(2, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
-  };
-
+  //Timer start/stop
   useEffect(() => {
-    if (isRunning) {
-      // pokreni interval
-      intervalRef.current = window.setInterval(() => {
-        setSeconds((t) => t + 1);
-      }, 1000);
-    }
-    // cleanup ili pauza
-    return () => {
-      if (intervalRef.current != null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
+    if (isRunning) startTimer(intervalRef, setSeconds);
+
+    return () => clearTimer(intervalRef);
   }, [isRunning]);
 
-  // zaustavi tajmer kad sve kartice budu rešene
+  // Stop timer if all cards are matched
   useEffect(() => {
-    if (numbersOfGrid.length > 0 && matched.size === numbersOfGrid.length) {
-      setIsRunning(false);
-    }
+    if (matched.size === numbersOfGrid.length) setIsRunning(false);
   }, [matched, numbersOfGrid.length]);
 
-  // --- SHUFFLE / GENERISANJE ---
-  function shuffleArray(array: number[]): number[] {
-    const copy = [...array];
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  }
-
-  function genPairs(count: number): number[] {
-    const half = Math.floor(count / 2);
-    const arr: number[] = [];
-    for (let i = 1; i <= half; i++) arr.push(i, i);
-    return shuffleArray(arr);
-  }
-
-  // reset igre pri promeni grida
+  // reset game on grid size change
   useEffect(() => {
     setNumbersOfGrid(genPairs(gridCount));
     setSelected([]);
@@ -85,21 +51,20 @@ export default function Game() {
     // start tajmera na prvi klik u rundi
     if (!isRunning) setIsRunning(true);
 
-    if (selected.length === 0) {
-      setSelected([i]);
-    } else if (selected.length === 1) {
+    if (selected.length === 0) setSelected([i]);
+    else if (selected.length === 1) {
       const first = selected[0];
       const second = i;
       setSelected([first, second]);
       setMoves(moves + 1);
       if (numbersOfGrid[first] === numbersOfGrid[second]) {
-        // pogodak → ostaju otvorene
+        // if matched -> stays open
         setTimeout(() => {
           setMatched((prev) => new Set([...prev, first, second]));
           setSelected([]);
         }, 300);
       } else {
-        // promašaj → zatvori posle kratko
+        // close after a short time
         setTimeout(() => setSelected([]), 700);
       }
     } else {
