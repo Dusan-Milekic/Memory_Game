@@ -1,7 +1,14 @@
 import { createRef, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSelector } from "../redux/hooks/hooks";
 import { useNavigate } from "react-router-dom";
-import { genPairs, formatTime, useTimer, clearTimer } from "../utils/general";
+import {
+  genPairs,
+  formatTime,
+  useTimer,
+  clearTimer,
+  genPairsIcons,
+} from "../utils/general";
+
 export default function Game() {
   const settings = useAppSelector((state) => state.settings);
 
@@ -11,70 +18,138 @@ export default function Game() {
   }, [settings.gridSize]);
 
   const [numbersOfGrid, setNumbersOfGrid] = useState<number[]>([]);
-  const [selected, setSelected] = useState<number[]>([]); // trenutno otvorene (max 2)
-  const [matched, setMatched] = useState<Set<number>>(new Set()); // trajno rešene
+  const [iconsOfGrid, setIconsOfGrid] = useState<string[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [selectedIcon, setSelectedIcon] = useState<string[]>([]);
+  const [matched, setMatched] = useState<Set<number>>(new Set());
+  const [matchedIcons, setMatchedIcons] = useState<Set<string>>(new Set());
   const [moves, setMoves] = useState<number>(0);
-  // --- TIMER ---
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+
   const intervalRef = useRef<number | null>(null);
   const refMenu = createRef<HTMLDivElement>();
   const refGameSection = createRef<HTMLDivElement>();
   const refReview = createRef<HTMLDivElement>();
   const navigate = useNavigate();
 
-  //Timer start/stop
-
+  // Timer start/stop
   useTimer(intervalRef, setSeconds, isRunning);
 
   // Stop timer if all cards are matched
   useEffect(() => {
-    if (matched.size === numbersOfGrid.length) {
+    if (
+      (settings.theme === "numbers" && matched.size === numbersOfGrid.length) ||
+      (settings.theme === "icons" && matchedIcons.size === iconsOfGrid.length)
+    ) {
       clearTimer(intervalRef);
     }
-  }, [matched, numbersOfGrid.length]);
+  }, [
+    matched,
+    matchedIcons,
+    numbersOfGrid.length,
+    iconsOfGrid.length,
+    settings.theme,
+  ]);
 
-  // reset game on grid size change
+  // Reset game on theme or grid size change
   useEffect(() => {
-    setNumbersOfGrid(genPairs(gridCount));
-    setSelected([]);
-    setMatched(new Set());
+    if (settings.theme === "numbers") {
+      setNumbersOfGrid(genPairs(gridCount));
+      setSelected([]);
+      setMatched(new Set());
+    } else {
+      setIconsOfGrid(genPairsIcons(gridCount));
+      setSelectedIcon([]);
+      setMatchedIcons(new Set());
+    }
     setSeconds(0);
     setIsRunning(false);
-  }, [gridCount]);
+    setMoves(0);
+  }, [settings.theme, gridCount]);
 
-  // --- KLIK LOGIKA ---
+  // --- CLICK LOGIC ---
   function handleClick(i: number) {
-    if (selected.includes(i) || matched.has(i)) return;
-    // Start timer on first click in the round
+    const isNumbersTheme = settings.theme === "numbers";
+    const iStr = i.toString();
+
+    // Prevent clicking already matched or selected cards
+    const isAlreadySelected = isNumbersTheme
+      ? selected.includes(i) || matched.has(i)
+      : selectedIcon.includes(iStr) || matchedIcons.has(iStr);
+    if (isAlreadySelected) return;
+
     if (!isRunning) setIsRunning(true);
 
-    if (selected.length === 0) {
-      setSelected([i]);
-    } else if (selected.length === 1) {
-      const firstIndex = selected[0];
-      const secondIndex = i;
-      setMoves(moves + 1);
-      setSelected([firstIndex, secondIndex]);
-      if (numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex]) {
-        // If matched -> stays open
-        setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
-        setSelected([]);
-
-        //if players matched all cards, display game review
-        if (
-          refMenu &&
-          refGameSection &&
-          matched.size + 2 === numbersOfGrid.length
-        ) {
-          refReview.current?.classList.remove("hidden");
-          refGameSection.current?.classList.add("opacity-50");
-          refGameSection.current?.classList.add("pointer-events-none");
-          if (intervalRef.current) clearInterval(intervalRef.current);
+    if (isNumbersTheme) {
+      // First selection
+      if (selected.length === 0) {
+        setSelected([i]);
+        return;
+      }
+      // Second selection
+      if (selected.length === 1) {
+        const firstIndex = selected[0];
+        const secondIndex = i;
+        setSelected([firstIndex, secondIndex]);
+        setMoves(moves + 1);
+        if (numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex]) {
+          setTimeout(() => {
+            setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
+            setSelected([]);
+            // End game check
+            if (
+              refMenu &&
+              refGameSection &&
+              matched.size + 2 === numbersOfGrid.length
+            ) {
+              refReview.current?.classList.remove("hidden");
+              refGameSection.current?.classList.add("opacity-50");
+              refGameSection.current?.classList.add("pointer-events-none");
+              if (intervalRef.current) clearTimer(intervalRef);
+            }
+          }, 300);
+        } else {
+          setTimeout(() => setSelected([]), 700);
         }
-      } else {
-        // If not matched -> close after a short delay
-        setTimeout(() => setSelected([]), 700);
+      }
+    } else {
+      // ICONS THEME
+      // First selection
+      if (selectedIcon.length === 0) {
+        setSelectedIcon([iStr]);
+        return;
+      }
+      // Second selection
+      if (selectedIcon.length === 1) {
+        const firstIndex = selectedIcon[0];
+        const secondIndex = iStr;
+        setSelectedIcon([firstIndex, secondIndex]);
+        setMoves(moves + 1);
+        if (
+          iconsOfGrid[parseInt(firstIndex)] ===
+          iconsOfGrid[parseInt(secondIndex)]
+        ) {
+          setTimeout(() => {
+            setMatchedIcons(
+              (prev) => new Set([...prev, firstIndex, secondIndex])
+            );
+            setSelectedIcon([]);
+            // End game check
+            if (
+              refMenu &&
+              refGameSection &&
+              matchedIcons.size + 2 === iconsOfGrid.length
+            ) {
+              refReview.current?.classList.remove("hidden");
+              refGameSection.current?.classList.add("opacity-50");
+              refGameSection.current?.classList.add("pointer-events-none");
+              if (intervalRef.current) clearTimer(intervalRef);
+            }
+          }, 300);
+        } else {
+          setTimeout(() => setSelectedIcon([]), 700);
+        }
       }
     }
   }
@@ -94,7 +169,7 @@ export default function Game() {
                   refMenu.current?.classList.remove("hidden");
                   refGameSection.current?.classList.add("opacity-50");
                   refGameSection.current?.classList.add("pointer-events-none");
-                  if (intervalRef.current) clearInterval(intervalRef.current);
+                  if (intervalRef.current) clearTimer(intervalRef);
                 }
               }}
             >
@@ -111,7 +186,15 @@ export default function Game() {
             } place-items-center gap-3 px-8 py-40`}
           >
             {Array.from({ length: gridCount }).map((_, i) => {
-              const isOpen = selected.includes(i) || matched.has(i);
+              const isOpen =
+                settings.theme === "numbers"
+                  ? selected.includes(i) || matched.has(i)
+                  : selectedIcon.includes(i.toString()) ||
+                    matchedIcons.has(i.toString());
+              const cellValue =
+                settings.theme === "numbers"
+                  ? numbersOfGrid[i]
+                  : iconsOfGrid[i];
               return (
                 <div
                   key={i}
@@ -123,7 +206,7 @@ export default function Game() {
                   } flex justify-center items-center cursor-pointer transition
                    ${isOpen ? "bg-blue-500" : "bg-blue-800"}`}
                 >
-                  <p className="pb-2">{isOpen ? numbersOfGrid[i] : ""}</p>
+                  <p className="pb-2">{isOpen ? cellValue : ""}</p>
                 </div>
               );
             })}
@@ -138,10 +221,7 @@ export default function Game() {
             </div>
             <div className="moves bg-blue-100 w-40 py-2 text-center rounded-xl">
               <p className="text-blue-400">Moves</p>
-              <p className="text-2xl text-blue-800">
-                {/* svaki pokušaj = 2 klika */}
-                {moves}
-              </p>
+              <p className="text-2xl text-blue-800">{moves}</p>
             </div>
           </div>
         </footer>
@@ -154,10 +234,15 @@ export default function Game() {
         <button
           className="cursor-pointer bg-orange-400 text-white font-bold w-full pb-3 pt-2 rounded-3xl"
           onClick={() => {
-            // Restart
-            setNumbersOfGrid(genPairs(gridCount));
-            setSelected([]);
-            setMatched(new Set());
+            if (settings.theme === "numbers") {
+              setNumbersOfGrid(genPairs(gridCount));
+              setSelected([]);
+              setMatched(new Set());
+            } else {
+              setIconsOfGrid(genPairsIcons(gridCount));
+              setSelectedIcon([]);
+              setMatchedIcons(new Set());
+            }
             setSeconds(0);
             setIsRunning(false);
             refGameSection.current?.classList.remove("opacity-50");
@@ -210,10 +295,15 @@ export default function Game() {
         <button
           className="cursor-pointer bg-orange-400 text-white font-bold w-full pb-3 pt-2 rounded-3xl mt-5"
           onClick={() => {
-            // Restart
-            setNumbersOfGrid(genPairs(gridCount));
-            setSelected([]);
-            setMatched(new Set());
+            if (settings.theme === "numbers") {
+              setNumbersOfGrid(genPairs(gridCount));
+              setSelected([]);
+              setMatched(new Set());
+            } else {
+              setIconsOfGrid(genPairsIcons(gridCount));
+              setSelectedIcon([]);
+              setMatchedIcons(new Set());
+            }
             setSeconds(0);
             setIsRunning(false);
             refGameSection.current?.classList.remove("opacity-50");

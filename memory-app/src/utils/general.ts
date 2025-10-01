@@ -13,6 +13,43 @@ export function genPairs(count: number): number[] {
   return shuffleNumbers(arr);
 }
 
+function shuffleIcons(arr: string[]): string[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export function genPairsIcons(count: number): string[] {
+  const iconsHalf = Math.floor(count / 2);
+  const icons = [
+    "🍎",
+    "🍌",
+    "🍇",
+    "🍉",
+    "🍓",
+    "🍒",
+    "🥝",
+    "🍍",
+    "🥥",
+    "🥭",
+    "🍑",
+    "🍐",
+    "🍊",
+    "🍋",
+    "🥑",
+    "🌽",
+  ];
+  const selectedIcons = icons.slice(0, iconsHalf);
+  const arr: string[] = [];
+  for (let i = 0; i < selectedIcons.length; i++) {
+    arr.push(selectedIcons[i], selectedIcons[i]);
+  }
+  return shuffleIcons(arr);
+}
+
 export function formatTime(s: number): string {
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
   const ss = String(s % 60).padStart(2, "0");
