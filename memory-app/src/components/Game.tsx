@@ -81,76 +81,58 @@ export default function Game() {
 
     if (!isRunning) setIsRunning(true);
 
+    // --- Numbers Theme Logic ---
     if (isNumbersTheme) {
-      // First selection
       if (selected.length === 0) {
         setSelected([i]);
         return;
       }
-      // Second selection
       if (selected.length === 1) {
         const firstIndex = selected[0];
         const secondIndex = i;
         setSelected([firstIndex, secondIndex]);
         setMoves(moves + 1);
-        if (numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex]) {
-          setTimeout(() => {
-            setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
-            setSelected([]);
-            // End game check
-            if (
-              refMenu &&
-              refGameSection &&
-              matched.size + 2 === numbersOfGrid.length
-            ) {
-              refReview.current?.classList.remove("hidden");
-              refGameSection.current?.classList.add("opacity-50");
-              refGameSection.current?.classList.add("pointer-events-none");
-              if (intervalRef.current) clearTimer(intervalRef);
+
+        const isMatch =
+          numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex];
+        setTimeout(
+          () => {
+            if (isMatch) {
+              setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
             }
-          }, 300);
-        } else {
-          setTimeout(() => setSelected([]), 700);
-        }
+            setSelected([]);
+          },
+          isMatch ? 300 : 700
+        );
       }
-    } else {
-      // ICONS THEME
-      // First selection
-      if (selectedIcon.length === 0) {
-        setSelectedIcon([iStr]);
-        return;
-      }
-      // Second selection
-      if (selectedIcon.length === 1) {
-        const firstIndex = selectedIcon[0];
-        const secondIndex = iStr;
-        setSelectedIcon([firstIndex, secondIndex]);
-        setMoves(moves + 1);
-        if (
-          iconsOfGrid[parseInt(firstIndex)] ===
-          iconsOfGrid[parseInt(secondIndex)]
-        ) {
-          setTimeout(() => {
+      return;
+    }
+
+    // --- Icons Theme Logic ---
+    if (selectedIcon.length === 0) {
+      setSelectedIcon([iStr]);
+      return;
+    }
+    if (selectedIcon.length === 1) {
+      const firstIndex = selectedIcon[0];
+      const secondIndex = iStr;
+      setSelectedIcon([firstIndex, secondIndex]);
+      setMoves(moves + 1);
+
+      const isMatch =
+        iconsOfGrid[parseInt(firstIndex)] ===
+        iconsOfGrid[parseInt(secondIndex)];
+      setTimeout(
+        () => {
+          if (isMatch) {
             setMatchedIcons(
               (prev) => new Set([...prev, firstIndex, secondIndex])
             );
-            setSelectedIcon([]);
-            // End game check
-            if (
-              refMenu &&
-              refGameSection &&
-              matchedIcons.size + 2 === iconsOfGrid.length
-            ) {
-              refReview.current?.classList.remove("hidden");
-              refGameSection.current?.classList.add("opacity-50");
-              refGameSection.current?.classList.add("pointer-events-none");
-              if (intervalRef.current) clearTimer(intervalRef);
-            }
-          }, 300);
-        } else {
-          setTimeout(() => setSelectedIcon([]), 700);
-        }
-      }
+          }
+          setSelectedIcon([]);
+        },
+        isMatch ? 300 : 700
+      );
     }
   }
 
