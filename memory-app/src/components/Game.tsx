@@ -81,7 +81,7 @@ export default function Game() {
 
   return (
     <>
-      <div className="game-section" ref={refGameSection}>
+      <div className="game-section w-[450px] mx-auto" ref={refGameSection}>
         <header className="flex w-full justify-between px-8 pt-10">
           <div className="title text-blue-950 font-bold">
             <h1 className="text-2xl">memory</h1>
@@ -106,7 +106,7 @@ export default function Game() {
         {/* GAME */}
         <main>
           <div
-            className={`game grid ${
+            className={`game grid  ${
               Number(settings.gridSize) === 4 ? "grid-cols-4" : "grid-cols-6"
             } place-items-center gap-3 px-8 py-40`}
           >
