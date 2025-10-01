@@ -20,7 +20,7 @@ export default function Game() {
   const intervalRef = useRef<number | null>(null);
   const refMenu = createRef<HTMLDivElement>();
   const refGameSection = createRef<HTMLDivElement>();
-
+  const refReview = createRef<HTMLDivElement>();
   const navigate = useNavigate();
 
   //Timer start/stop
@@ -45,9 +45,7 @@ export default function Game() {
 
   // --- KLIK LOGIKA ---
   function handleClick(i: number) {
-    console.log("MATCHED: ", matched);
     if (selected.includes(i) || matched.has(i)) return;
-    console.log("MATCHED SIZE", matched.size);
     // Start timer on first click in the round
     if (!isRunning) setIsRunning(true);
 
@@ -60,10 +58,20 @@ export default function Game() {
       setSelected([firstIndex, secondIndex]);
       if (numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex]) {
         // If matched -> stays open
-        setTimeout(() => {
-          setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
-          setSelected([]);
-        }, 300);
+        setMatched((prev) => new Set([...prev, firstIndex, secondIndex]));
+        setSelected([]);
+
+        //if players matched all cards, display game review
+        if (
+          refMenu &&
+          refGameSection &&
+          matched.size + 2 === numbersOfGrid.length
+        ) {
+          refReview.current?.classList.remove("hidden");
+          refGameSection.current?.classList.add("opacity-50");
+          refGameSection.current?.classList.add("pointer-events-none");
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        }
       } else {
         // If not matched -> close after a short delay
         setTimeout(() => setSelected([]), 700);
@@ -152,6 +160,11 @@ export default function Game() {
             setMatched(new Set());
             setSeconds(0);
             setIsRunning(false);
+            refGameSection.current?.classList.remove("opacity-50");
+            refMenu.current?.classList.add("hidden");
+            refGameSection.current?.classList.remove("pointer-events-none");
+            clearTimer(intervalRef);
+            setMoves(0);
           }}
         >
           Restart
@@ -176,6 +189,49 @@ export default function Game() {
           }}
         >
           Resume Game
+        </button>
+      </div>
+
+      {/* Display game review */}
+      <div
+        className="bg-gray-50 rounded-2xl px-5 w-80 py-4 absolute left-1/2 -translate-x-1/2 -translate-y-11/12 bottom-10 text-center shadow hidden"
+        ref={refReview}
+      >
+        <h2 className="text-lg font-bold text-black">Game Review</h2>
+        <p className="text-black">Lorem ipsum, dolor sit</p>
+        <div className="py-2.5 bg-blue-100 rounded-xl mt-2 mb-4 flex justify-between px-4">
+          <p className="text-blue-400">Time Elapsed</p>
+          <p className="text-blue-800">{formatTime(seconds)}</p>
+        </div>
+        <div className="py-2.5 bg-blue-100 rounded-xl flex justify-between px-4">
+          <p className="text-blue-400">Moves taken</p>
+          <p className="text-blue-800">{moves}</p>
+        </div>
+        <button
+          className="cursor-pointer bg-orange-400 text-white font-bold w-full pb-3 pt-2 rounded-3xl mt-5"
+          onClick={() => {
+            // Restart
+            setNumbersOfGrid(genPairs(gridCount));
+            setSelected([]);
+            setMatched(new Set());
+            setSeconds(0);
+            setIsRunning(false);
+            refGameSection.current?.classList.remove("opacity-50");
+            refReview.current?.classList.add("hidden");
+            refGameSection.current?.classList.remove("pointer-events-none");
+            setMoves(0);
+            clearTimer(intervalRef);
+          }}
+        >
+          Restart
+        </button>
+        <button
+          className="cursor-pointer bg-blue-100 text-blue-800 font-bold w-full pb-3 pt-2 rounded-3xl mt-3"
+          onClick={() => {
+            navigate("/");
+          }}
+        >
+          New Game
         </button>
       </div>
     </>
