@@ -1,0 +1,293 @@
+import { createRef, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "../redux/hooks/hooks";
+import {
+    clearTimer,
+    genPairs,
+    genPairsIcons,
+    useTimer,
+} from "../utils/general";
+
+export default function Game() {
+    const settings = useAppSelector((state) => state.settings);
+
+    const gridCount = useMemo(() => {
+        const g = Number(settings.gridSize) || 4;
+        return g * g;
+    }, [settings.gridSize]);
+
+    const [numbersOfGrid, setNumbersOfGrid] = useState<number[]>([]);
+    const [iconsOfGrid, setIconsOfGrid] = useState<string[]>([]);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [selectedIcon, setSelectedIcon] = useState<string[]>([]);
+    const [matched, setMatched] = useState<Set<number>>(new Set([]));
+    const [matchedIcons, setMatchedIcons] = useState<Set<string>>(new Set());
+    const [moves, setMoves] = useState<number>(0);
+    const [seconds, setSeconds] = useState(0);
+    const [isRunning, setIsRunning] = useState(false);
+
+    // New state for player scores and current player
+    const [playerScores, setPlayerScores] = useState<number[]>(Array(settings.players).fill(0));
+    const [currentPlayer, setCurrentPlayer] = useState(0);
+
+    const intervalRef = useRef<number | null>(null);
+    const refMenu = createRef<HTMLDivElement>();
+    const refGameSection = createRef<HTMLDivElement>();
+    const refReview = createRef<HTMLDivElement>();
+    const navigate = useNavigate();
+
+    // Timer start/stop
+    useTimer(intervalRef, setSeconds, isRunning);
+
+    // Stop timer if all cards are matched
+    useEffect(() => {
+        if (
+            (settings.theme === "numbers" && matched.size === numbersOfGrid.length) ||
+            (settings.theme === "icons" && matchedIcons.size === iconsOfGrid.length)
+        ) {
+            clearTimer(intervalRef);
+        }
+    }, [
+        matched,
+        matchedIcons,
+        numbersOfGrid.length,
+        iconsOfGrid.length,
+        settings.theme,
+    ]);
+
+    // Show review when game is finished
+    useEffect(() => {
+        if (matched.size >= gridCount || matchedIcons.size >= gridCount) {
+            if (refGameSection.current && refReview.current) {
+                refGameSection.current.classList.add("opacity-50");
+                refGameSection.current.classList.add("pointer-events-none");
+                refReview.current.classList.remove("hidden");
+            }
+        }
+    }, [matched, matchedIcons, refGameSection, refReview, gridCount]);
+
+    // Reset game on theme or grid size change
+    useEffect(() => {
+        if (settings.theme === "numbers") {
+            setNumbersOfGrid(genPairs(gridCount));
+            setSelected([]);
+            setMatched(new Set([]));
+        } else {
+            setIconsOfGrid(genPairsIcons(gridCount));
+            setSelectedIcon([]);
+            setMatchedIcons(new Set());
+        }
+        setSeconds(0);
+        setIsRunning(false);
+        setMoves(0);
+        setPlayerScores(Array(settings.players).fill(0));
+        setCurrentPlayer(0);
+    }, [settings.theme, gridCount, settings.players]);
+
+    // --- CLICK LOGIC ---
+    function handleClick(i: number) {
+        const isNumbersTheme = settings.theme === "numbers";
+        const iStr = i.toString();
+
+        // Prevent clicking already matched or selected cards
+        const isAlreadySelected = isNumbersTheme
+            ? selected.includes(i) || matched.has(i)
+            : selectedIcon.includes(iStr) || matchedIcons.has(iStr);
+        if (isAlreadySelected) return;
+
+        if (!isRunning) setIsRunning(true);
+
+        if (isNumbersTheme) {
+            // Handle "numbers" theme
+            if (selected.length === 0) {
+                setSelected([i]);
+                return;
+            }
+            if (selected.length === 1) {
+                const firstIndex = selected[0];
+                const secondIndex = i;
+                setSelected([firstIndex, secondIndex]);
+                setMoves(m => m + 1);
+
+                const isMatch = numbersOfGrid[firstIndex] === numbersOfGrid[secondIndex];
+                setTimeout(() => {
+                    if (isMatch) {
+                        setMatched(prev => new Set([...prev, firstIndex, secondIndex]));
+                        setPlayerScores(scores => {
+                            const newScores = [...scores];
+                            newScores[currentPlayer] += 1;
+                            return newScores;
+                        });
+                        // Same player gets another turn
+                    } else {
+                        // Move to next player
+                        setCurrentPlayer(p => (p + 1) % settings.players);
+                    }
+                    setSelected([]);
+                }, isMatch ? 300 : 700);
+            }
+            return;
+        }
+
+        // ICONS THEME
+        if (selectedIcon.length === 0) {
+            setSelectedIcon([iStr]);
+            return;
+        }
+        if (selectedIcon.length === 1) {
+            const firstIndex = selectedIcon[0];
+            const secondIndex = iStr;
+            setSelectedIcon([firstIndex, secondIndex]);
+            setMoves(m => m + 1);
+
+            const isMatch = iconsOfGrid[parseInt(firstIndex)] === iconsOfGrid[parseInt(secondIndex)];
+            setTimeout(() => {
+                if (isMatch) {
+                    setMatchedIcons(prev => new Set([...prev, firstIndex, secondIndex]));
+                    setPlayerScores(scores => {
+                        const newScores = [...scores];
+                        newScores[currentPlayer] += 1;
+                        return newScores;
+                    });
+                    // Same player gets another turn
+                } else {
+                    // Move to next player
+                    setCurrentPlayer(p => (p + 1) % settings.players);
+                }
+                setSelectedIcon([]);
+            }, isMatch ? 300 : 700);
+        }
+    }
+
+    // Player array for displaying names and scores
+    const players = Array.from({ length: settings.players }, (_, i) => ({
+        name: `Player ${i + 1}`,
+        score: playerScores[i] || 0,
+    }));
+
+    return (
+        <>
+            <div className="game-section w-[450px] mx-auto" ref={refGameSection}>
+                <header className="flex w-full justify-between px-8 pt-10">
+                    <div className="title text-blue-950 font-bold">
+                        <h1 className="text-2xl">memory</h1>
+                    </div>
+                    <div className="menu relative">
+                        <button
+                            className="cursor-pointer bg-orange-400 px-4 pb-2 pt-1 rounded-2xl"
+                            onClick={() => {
+                                if (refMenu && refGameSection) {
+                                    refMenu.current?.classList.remove("hidden");
+                                    refGameSection.current?.classList.add("opacity-50");
+                                    refGameSection.current?.classList.add("pointer-events-none");
+                                    if (intervalRef.current) clearTimer(intervalRef);
+                                }
+                            }}
+                        >
+                            Menu
+                        </button>
+                    </div>
+                </header>
+
+                {/* GAME */}
+                <main>
+                    <div
+                        className={`game grid  ${Number(settings.gridSize) === 4 ? "grid-cols-4" : "grid-cols-6"
+                            } place-items-center gap-3 px-8 py-40`}
+                    >
+                        {Array.from({ length: gridCount }).map((_, i) => {
+                            const isOpen =
+                                settings.theme === "numbers"
+                                    ? selected.includes(i) || matched.has(i)
+                                    : selectedIcon.includes(i.toString()) ||
+                                    matchedIcons.has(i.toString());
+                            const cellValue =
+                                settings.theme === "numbers"
+                                    ? numbersOfGrid[i]
+                                    : iconsOfGrid[i];
+                            return (
+                                <div
+                                    key={i}
+                                    onClick={() => handleClick(i)}
+                                    className={`rounded-full ${Number(settings.gridSize) === 4
+                                        ? "w-20 h-20 text-4xl"
+                                        : "w-12 h-12 text-2xl"
+                                        } flex justify-center items-center cursor-pointer transition
+                   ${isOpen ? "bg-blue-500" : "bg-blue-800"}`}
+                                >
+                                    <p className="pb-2">{isOpen ? cellValue : ""}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </main>
+
+                <footer>
+                    <div className="info flex justify-around px-8 gap-6 font-bold">
+                        {players.map((player, x) => (
+                            <div
+                                key={x}
+                                className={`player bg-blue-100 w-40 py-2 text-center rounded-xl ${currentPlayer === x ? " bg-orange-400" : ""}`}
+                            >
+                                <p>{player.name}{currentPlayer === x ? "" : ""}</p>
+                                <p>{player.score} pts</p>
+                            </div>
+                        ))}
+                    </div>
+                </footer>
+            </div>
+
+            <div
+                className="options w-80 absolute px-10 bg-gray-50 flex flex-col gap-3 shadow rounded-xl py-5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-11/12  hidden"
+                ref={refMenu}
+            >
+                <button
+                    className="cursor-pointer bg-orange-400 text-white font-bold w-full pb-3 pt-2 rounded-3xl"
+                    onClick={() => {
+                        if (settings.theme === "numbers") {
+                            setNumbersOfGrid(genPairs(gridCount));
+                            setSelected([]);
+                            setMatched(new Set());
+                        } else {
+                            setIconsOfGrid(genPairsIcons(gridCount));
+                            setSelectedIcon([]);
+                            setMatchedIcons(new Set());
+                        }
+                        setSeconds(0);
+                        setIsRunning(false);
+                        setMoves(0);
+                        setPlayerScores(Array(settings.players).fill(0));
+                        setCurrentPlayer(0);
+                        refGameSection.current?.classList.remove("opacity-50");
+                        refMenu.current?.classList.add("hidden");
+                        refGameSection.current?.classList.remove("pointer-events-none");
+                        clearTimer(intervalRef);
+                    }}
+                >
+                    Restart
+                </button>
+                <button
+                    className="cursor-pointer bg-blue-100 text-blue-800 font-bold w-full pb-3 pt-2 rounded-3xl"
+                    onClick={() => {
+                        navigate("/");
+                    }}
+                >
+                    New Game
+                </button>
+                <button
+                    className="cursor-pointer  bg-blue-100 text-blue-800 font-bold w-full pb-3 pt-2 rounded-3xl"
+                    onClick={() => {
+                        refGameSection.current?.classList.remove("opacity-50");
+                        refMenu.current?.classList.add("hidden");
+                        refGameSection.current?.classList.remove("pointer-events-none");
+                        if (!isRunning) {
+                            setIsRunning(true);
+                        }
+                    }}
+                >
+                    Resume Game
+                </button>
+            </div>
+        </>
+    );
+}

@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Game from "./components/Game";
 import Settings from "./components/Settings";
+import Multiplayer from "./components/Multiplayer";
 
 function App() {
 	return (
@@ -15,6 +16,7 @@ function App() {
 						</div>
 					}
 				/>
+				<Route path="/multiplayer" element={<Multiplayer />} />
 				<Route path="/game" element={<Game />} />
 			</Routes>
 		</BrowserRouter>

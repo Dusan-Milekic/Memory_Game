@@ -31,7 +31,8 @@ export default function Settings() {
 			gridSize: state.grid,
 		};
 		dispatch(setSettings(settings));
-		navigate("/game");
+		if (state.players > 1) navigate("/multiplayer");
+		else navigate("/game");
 	};
 
 	return (
